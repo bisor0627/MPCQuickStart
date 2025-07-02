@@ -2,10 +2,14 @@ import SwiftUI
 
 /// 연결 후 간단한 채팅 데모
 struct ChatRoomView: View {
+    let userName: String
     @ObservedObject private var mpc: MPCSession
     @State private var input = ""
 
-    init(mode: RoomMode) { _mpc = ObservedObject(wrappedValue: MPCSession(mode: mode)) }
+    init(mode: RoomMode, userName: String) {
+        self.userName = userName
+        _mpc = ObservedObject(wrappedValue: MPCSession(mode: mode, displayName: userName))
+    }
 
     var body: some View {
         VStack {
@@ -17,17 +21,35 @@ struct ChatRoomView: View {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 8) {
                         ForEach(mpc.messages) { msg in
+                            let isMine = msg.sender == userName
                             HStack(alignment: .top) {
-                                Text(msg.sender)
-                                    .font(.caption2)
-                                    .foregroundColor(.blue)
-                                VStack(alignment: .leading) {
-                                    Text(msg.text)
-                                        .font(.body)
+                                if isMine { Spacer() }
+                                VStack(alignment: isMine ? .trailing : .leading) {
+                                    HStack(alignment: .bottom, spacing: 4) {
+                                        if !isMine {
+                                            Text(msg.sender)
+                                                .font(.caption2)
+                                                .foregroundColor(.blue)
+                                        }
+                                        Text(msg.text)
+                                            .font(.body)
+                                            .padding(8)
+                                            .background(isMine ? Color.accentColor.opacity(0.2) : Color.gray.opacity(0.15))
+                                            .cornerRadius(10)
+                                            .foregroundColor(.primary)
+                                        if isMine {
+                                            Text("나")
+                                                .font(.caption2)
+                                                .foregroundColor(.accentColor)
+                                        }
+                                    }
                                     Text(msg.date, style: .time)
                                         .font(.caption2)
                                         .foregroundColor(.gray)
+                                        .frame(maxWidth: .infinity, alignment: isMine ? .trailing : .leading)
                                 }
+                                .frame(maxWidth: 220, alignment: isMine ? .trailing : .leading)
+                                if !isMine { Spacer() }
                             }
                             .id(msg.id)
                         }

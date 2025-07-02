@@ -13,14 +13,15 @@ final class MPCSession: NSObject, ObservableObject {
     // MARK: - 내부 프로퍼티
 
     private let serviceType = "mpc-demo" // ≤15byte 소문자·숫자·하이픈
-    private let myID = MCPeerID(displayName: UIDevice.current.name)
+    private let myID: MCPeerID
     private var session: MCSession!
     private var advertiser: MCNearbyServiceAdvertiser!
     private var browser: MCNearbyServiceBrowser!
 
     private let mode: RoomMode
-    init(mode: RoomMode) {
+    init(mode: RoomMode, displayName: String) {
         self.mode = mode
+        self.myID = MCPeerID(displayName: displayName)
         super.init()
 
         session = MCSession(peer: myID, securityIdentity: nil, encryptionPreference: .required)
