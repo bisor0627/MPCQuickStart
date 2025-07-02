@@ -13,9 +13,17 @@ struct ChatRoomView: View {
 
     var body: some View {
         VStack {
-            Text("연결된 기기: \(mpc.connected.count)")
-                .font(.caption)
-                .padding(.top)
+            // 연결된 사람 이름 목록 표시
+            if !mpc.connected.isEmpty {
+                let names = mpc.connected.map { $0.displayName }.joined(separator: ", ")
+                Text("연결된 사람: \(names)")
+                    .font(.caption)
+                    .padding(.top)
+            } else {
+                Text("연결된 사람 없음")
+                    .font(.caption)
+                    .padding(.top)
+            }
 
             ScrollViewReader { proxy in
                 ScrollView {
