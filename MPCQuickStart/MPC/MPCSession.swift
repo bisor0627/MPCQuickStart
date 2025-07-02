@@ -9,6 +9,7 @@ final class MPCSession: NSObject, ObservableObject {
     @Published var connected: [MCPeerID] = []
     @Published var lastReceived: String = ""
     @Published var messages: [ChatMessage] = []
+    @Published var foundPeers: [MCPeerID] = [] // ➊ 발견된 피어 목록
 
     // MARK: - 내부 프로퍼티
 
@@ -21,7 +22,7 @@ final class MPCSession: NSObject, ObservableObject {
     private let mode: RoomMode
     init(mode: RoomMode, displayName: String) {
         self.mode = mode
-        self.myID = MCPeerID(displayName: displayName)
+        myID = MCPeerID(displayName: displayName)
         super.init()
 
         session = MCSession(peer: myID, securityIdentity: nil, encryptionPreference: .required)
@@ -81,11 +82,30 @@ extension MPCSession: MCSessionDelegate, MCNearbyServiceBrowserDelegate, MCNearb
 
     // 브라우저: 피어 발견 시
     func browser(_: MCNearbyServiceBrowser, foundPeer pid: MCPeerID, withDiscoveryInfo _: [String: String]?) {
-        guard connected.count < mode.maxPeers else { return } // 연결 수 제한
-        browser.invitePeer(pid, to: session, withContext: nil, timeout: 10)
+        switch mode {
+        case .group:
+            // 그룹 방은 기존 로직 유지
+            browser.invitePeer(pid, to: session, withContext: nil, timeout: 10)
+        case .oneToOne:
+            // 1:1 방은 UI에서 사용자가 직접 초대하도록만 목록에 추가
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                if !self.foundPeers.contains(pid) { self.foundPeers.append(pid) }
+            }
+        }
     }
 
-    func browser(_: MCNearbyServiceBrowser, lostPeer _: MCPeerID) {}
+    func browser(_: MCNearbyServiceBrowser, lostPeer pid: MCPeerID) {
+        DispatchQueue.main.async { [weak self] in
+            self?.foundPeers.removeAll(where: { $0 == pid })
+        }
+    }
+
+    // MARK: - 수동 초대 API (UI에서 호출)
+
+    func invite(_ peer: MCPeerID) {
+        browser.invitePeer(peer, to: session, withContext: nil, timeout: 10)
+    }
 
     // 광고자: 초대 수신 시
     func advertiser(_: MCNearbyServiceAdvertiser,
