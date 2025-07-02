@@ -1,34 +1,35 @@
-import MultipeerConnectivity
 import Combine
 import Foundation
+import MultipeerConnectivity
 
 /// 단일 세션을 관리하는 경량 래퍼
 final class MPCSession: NSObject, ObservableObject {
-
     // MARK: - Public 상태
-    @Published var connected:     [MCPeerID] = []
-    @Published var lastReceived:  String      = ""
+
+    @Published var connected: [MCPeerID] = []
+    @Published var lastReceived: String = ""
     @Published var messages: [ChatMessage] = []
 
     // MARK: - 내부 프로퍼티
-    private let serviceType = "mpc-demo"           // ≤15byte 소문자·숫자·하이픈
-    private let myID        = MCPeerID(displayName: UIDevice.current.name)
-    private var session:     MCSession!
-    private var advertiser:  MCNearbyServiceAdvertiser!
-    private var browser:     MCNearbyServiceBrowser!
+
+    private let serviceType = "mpc-demo" // ≤15byte 소문자·숫자·하이픈
+    private let myID = MCPeerID(displayName: UIDevice.current.name)
+    private var session: MCSession!
+    private var advertiser: MCNearbyServiceAdvertiser!
+    private var browser: MCNearbyServiceBrowser!
 
     private let mode: RoomMode
     init(mode: RoomMode) {
         self.mode = mode
         super.init()
 
-        session    = MCSession(peer: myID, securityIdentity: nil, encryptionPreference: .required)
+        session = MCSession(peer: myID, securityIdentity: nil, encryptionPreference: .required)
         advertiser = MCNearbyServiceAdvertiser(peer: myID, discoveryInfo: nil, serviceType: serviceType)
-        browser    = MCNearbyServiceBrowser   (peer: myID, serviceType: serviceType)
+        browser = MCNearbyServiceBrowser(peer: myID, serviceType: serviceType)
 
-        session.delegate    = self
+        session.delegate = self
         advertiser.delegate = self
-        browser.delegate    = self
+        browser.delegate = self
 
         advertiser.startAdvertisingPeer()
         browser.startBrowsingForPeers()
@@ -40,6 +41,7 @@ final class MPCSession: NSObject, ObservableObject {
     }
 
     // MARK: - 송신 API
+
     func send(text: String) {
         guard !session.connectedPeers.isEmpty,
               let data = text.data(using: .utf8)
@@ -54,15 +56,15 @@ final class MPCSession: NSObject, ObservableObject {
 }
 
 // MARK: - Delegates
-extension MPCSession: MCSessionDelegate, MCNearbyServiceBrowserDelegate, MCNearbyServiceAdvertiserDelegate {
 
+extension MPCSession: MCSessionDelegate, MCNearbyServiceBrowserDelegate, MCNearbyServiceAdvertiserDelegate {
     // 상태 변경
-    func session(_ session: MCSession, peer peerID: MCPeerID, didChange state: MCSessionState) {
+    func session(_ session: MCSession, peer _: MCPeerID, didChange _: MCSessionState) {
         DispatchQueue.main.async { self.connected = session.connectedPeers }
     }
 
     // 데이터 수신
-    func session(_ session: MCSession, didReceive data: Data, fromPeer peerID: MCPeerID) {
+    func session(_: MCSession, didReceive data: Data, fromPeer peerID: MCPeerID) {
         guard let str = String(data: data, encoding: .utf8) else { return }
         let message = ChatMessage(sender: peerID.displayName, text: str, date: Date())
         DispatchQueue.main.async {
@@ -72,29 +74,30 @@ extension MPCSession: MCSessionDelegate, MCNearbyServiceBrowserDelegate, MCNearb
     }
 
     // 필요하지만 미사용
-    func session(_:MCSession, didReceive:InputStream, withName:String, fromPeer:MCPeerID) {}
-    func session(_:MCSession, didStartReceivingResourceWithName:String, fromPeer:MCPeerID, with:Progress) {}
-    func session(_:MCSession, didFinishReceivingResourceWithName:String, fromPeer:MCPeerID, at:URL?, withError:Error?) {}
+    func session(_: MCSession, didReceive _: InputStream, withName _: String, fromPeer _: MCPeerID) {}
+    func session(_: MCSession, didStartReceivingResourceWithName _: String, fromPeer _: MCPeerID, with _: Progress) {}
+    func session(_: MCSession, didFinishReceivingResourceWithName _: String, fromPeer _: MCPeerID, at _: URL?, withError _: Error?) {}
 
     // 브라우저: 피어 발견 시
-    func browser(_:MCNearbyServiceBrowser, foundPeer pid: MCPeerID, withDiscoveryInfo _: [String:String]?) {
-        guard connected.count < mode.maxPeers else { return }   // 연결 수 제한
+    func browser(_: MCNearbyServiceBrowser, foundPeer pid: MCPeerID, withDiscoveryInfo _: [String: String]?) {
+        guard connected.count < mode.maxPeers else { return } // 연결 수 제한
         browser.invitePeer(pid, to: session, withContext: nil, timeout: 10)
     }
-    func browser(_:MCNearbyServiceBrowser, lostPeer pid: MCPeerID) {}
+
+    func browser(_: MCNearbyServiceBrowser, lostPeer _: MCPeerID) {}
 
     // 광고자: 초대 수신 시
-    func advertiser(_:MCNearbyServiceAdvertiser,
-                    didReceiveInvitationFromPeer pid: MCPeerID,
+    func advertiser(_: MCNearbyServiceAdvertiser,
+                    didReceiveInvitationFromPeer _: MCPeerID,
                     withContext _: Data?,
-                    invitationHandler: @escaping (Bool, MCSession?) -> Void) {
-
+                    invitationHandler: @escaping (Bool, MCSession?) -> Void)
+    {
         // 1:1방이면 이미 한 명과 연결 상태인지 확인
         let accept = connected.count < mode.maxPeers
         invitationHandler(accept, session)
     }
 
     // 시작 실패 로그(옵션)
-    func advertiser(_:MCNearbyServiceAdvertiser, didNotStartAdvertisingPeer error: Error) { print(error) }
-    func browser  (_:MCNearbyServiceBrowser,  didNotStartBrowsingForPeers error: Error) { print(error) }
+    func advertiser(_: MCNearbyServiceAdvertiser, didNotStartAdvertisingPeer error: Error) { print(error) }
+    func browser(_: MCNearbyServiceBrowser, didNotStartBrowsingForPeers error: Error) { print(error) }
 }
